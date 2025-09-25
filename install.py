@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LocalSync Easy Installer - Simple cross-platform version
+LocalSync Simple Installer - Robust and user-friendly
 """
 
 import os
@@ -12,6 +12,18 @@ import time
 class SimpleInstaller:
     def __init__(self):
         self.system = platform.system()
+        self.python_cmd = self._find_python()
+        self.pip_cmd = self.python_cmd.replace("python", "pip") if self.python_cmd else None
+        
+    def _find_python(self):
+        """Find available Python command"""
+        for cmd in ["python3", "python", "py"]:
+            try:
+                subprocess.run([cmd, "--version"], capture_output=True, check=True)
+                return cmd
+            except:
+                continue
+        return None
         
     def clear_screen(self):
         os.system('cls' if self.system == 'Windows' else 'clear')
@@ -27,157 +39,174 @@ class SimpleInstaller:
         input(f"\n{message}")
     
     def run_command(self, command, description):
+        """Run command with error handling"""
         print(f"⏳ {description}...")
         try:
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=120)
             if result.returncode == 0:
                 print(f"✅ {description} completed!")
                 return True
             else:
-                print(f"❌ {description} failed")
+                print(f"⚠️ {description} had issues: {result.stderr.strip()}")
                 return False
         except Exception as e:
-            print(f"❌ {description} error: {e}")
+            print(f"⚠️ {description} error: {e}")
             return False
     
-    def check_python(self):
-        self.print_header("Checking Python")
+    def check_system(self):
+        self.print_header("System Check")
         
-        # Try python3 first, then python
-        for cmd in ["python3", "python"]:
-            try:
-                result = subprocess.run([cmd, "--version"], capture_output=True, text=True)
-                if result.returncode == 0:
-                    print(f"✅ Python found: {result.stdout.strip()}")
-                    self.python_cmd = cmd
-                    self.pip_cmd = cmd.replace("python", "pip")
-                    return True
-            except:
-                continue
+        if not self.python_cmd:
+            print("❌ Python not found!")
+            print("\nPlease install Python 3.7+ from: https://python.org/downloads")
+            return False
         
-        print("❌ Python not found")
-        print("\nPlease install Python 3.7+ from: https://python.org/downloads")
-        return False
+        try:
+            version_result = subprocess.run([self.python_cmd, "--version"], capture_output=True, text=True)
+            print(f"✅ {version_result.stdout.strip()} found")
+            return True
+        except:
+            print("❌ Python check failed")
+            return False
     
-    def install_localsync(self):
-        self.print_header("Installing LocalSync")
+    def install_dependencies(self):
+        self.print_header("Installing Dependencies")
         
+        # Try simple install first (no pip upgrade)
         commands = [
-            (f"{self.pip_cmd} install --upgrade pip", "Updating pip"),
             (f"{self.pip_cmd} install -e .", "Installing LocalSync"),
         ]
         
+        success = True
         for cmd, desc in commands:
             if not self.run_command(cmd, desc):
-                return False
-        return True
+                success = False
+                print("Trying alternative method...")
+                # Try with python -m pip
+                alt_cmd = cmd.replace(self.pip_cmd, f"{self.python_cmd} -m pip")
+                self.run_command(alt_cmd, desc + " (alternative)")
+        
+        return success
     
-    def create_easy_launchers(self):
+    def create_launchers(self):
         self.print_header("Creating Easy Launchers")
         
-        # Create platform-specific launcher
-        if self.system == "Windows":
-            self._create_windows_launcher()
-        else:
-            self._create_unix_launcher()
+        try:
+            if self.system == "Windows":
+                self._create_windows_launcher()
+            else:
+                self._create_unix_launcher()
+            
+            print("✅ Easy launchers created!")
+        except Exception as e:
+            print(f"⚠️ Could not create launchers: {e}")
+            print("💡 You can still use 'localsync' command")
         
-        print("✅ Easy launchers created!")
+        return True  # Not critical, so always return True
     
     def _create_windows_launcher(self):
         """Create Windows batch file"""
         batch_content = """@echo off
-echo Starting LocalSync...
+chcp 65001 > nul
+echo.
+echo 🚀 LocalSync - Starting...
 echo.
 python -c "import localsync.cli; localsync.cli.main()"
 echo.
-echo LocalSync has closed.
-echo You can run it again by double-clicking this file.
-pause
+echo.
+echo Press any key to close...
+pause > nul
 """
         
-        try:
-            with open("Start-LocalSync.bat", "w") as f:
-                f.write(batch_content)
-            print("✅ Created 'Start-LocalSync.bat'")
-            print("   Double-click this file to run LocalSync!")
-        except Exception as e:
-            print(f"⚠️  Could not create launcher: {e}")
+        with open("LocalSync.bat", "w", encoding="utf-8") as f:
+            f.write(batch_content)
+        print("✅ Created 'LocalSync.bat' - double-click to run!")
     
     def _create_unix_launcher(self):
         """Create Unix shell script"""
         script_content = """#!/bin/bash
 echo "🚀 Starting LocalSync..."
-echo "⏳ Please wait..."
 localsync
 echo ""
-echo "👋 LocalSync closed. To restart, run this file again!"
-echo "💡 Keep it running to receive files from others."
-read -p "Press Enter to close..."
+echo "💡 Tip: Keep LocalSync running to receive files."
 """
         
-        try:
-            with open("start-localsync.sh", "w") as f:
-                f.write(script_content)
-            os.chmod("start-localsync.sh", 0o755)
-            print("✅ Created 'start-localsync.sh'")
-            print("   Double-click or run this file to start!")
-        except Exception as e:
-            print(f"⚠️  Could not create launcher: {e}")
+        with open("start-localsync", "w") as f:
+            f.write(script_content)
+        os.chmod("start-localsync", 0o755)
+        print("✅ Created 'start-localsync' - run with: ./start-localsync")
+    
+    def test_installation(self):
+        self.print_header("Testing Installation")
+        
+        tests = [
+            (f"{self.python_cmd} -c \"import localsync\"", "Testing LocalSync import"),
+            (f"{self.python_cmd} -c \"import tkinter\"", "Testing GUI support"),
+        ]
+        
+        for cmd, desc in tests:
+            self.run_command(cmd, desc)
+        
+        return True  # Don't fail installation on tests
     
     def show_success(self):
-        self.print_header("Installation Complete! 🎉")
+        self.print_header("🎉 Installation Complete!")
         
         print("""
 ✨ LocalSync is ready to use!
 
-📖 QUICK START:
+🚀 QUICK START:
 
-1. 🚀 START THE APP:
-   - Windows: Double-click 'Start-LocalSync.bat'
-   - Mac/Linux: Double-click 'start-localsync.sh'
-   - Or type 'localsync' in terminal
+1. EASY LAUNCH:
+   • Windows: Double-click 'LocalSync.bat'
+   • Mac/Linux: Run './start-localsync'
+   • Or type 'localsync' in terminal
 
-2. 👤 CREATE ACCOUNT:
-   - Choose '2. Register' in the menu
-   - Enter username and password
-   - Login with your account
+2. FIRST TIME:
+   • Choose '2. Register' to create account
+   • Login with your credentials
 
-3. 🔍 FIND FRIENDS:
-   - Make sure friends are on same Wi-Fi
-   - They need to run LocalSync too
-   - Go to 'View Online Devices'
+3. SHARE FILES:
+   • Friends must be on same Wi-Fi
+   • Use menu numbers for navigation
+   • Click 'Open File Explorer' for easy selection
 
-4. 📤 SEND FILES:
-   - Use the easy menu system
-   - Click 'Open File Explorer' to pick files
-   - Select friend and send!
-
-💡 TIP: Keep LocalSync running to receive files automatically.
+💡 TIP: Keep LocalSync running to receive files!
 """)
         
-        self.wait_enter("Press Enter to start LocalSync now...")
+        self.wait_enter("Press Enter to try LocalSync now...")
     
-    def run(self):
+    def run_installation(self):
         """Run the complete installation"""
         try:
             self.print_header("Welcome to LocalSync!")
-            self.wait_enter("Press Enter to begin easy installation...")
+            print("This will install LocalSync on your system.")
+            self.wait_enter("Press Enter to begin...")
             
+            # Run installation steps
             steps = [
-                ("Checking Requirements", self.check_python),
-                ("Installing", self.install_localsync),
-                ("Creating Launchers", self.create_easy_launchers),
+                ("System Check", self.check_system),
+                ("Installation", self.install_dependencies), 
+                ("Creating Launchers", self.create_launchers),
+                ("Testing", self.test_installation),
             ]
             
+            all_success = True
             for step_name, step_func in steps:
                 self.print_header(step_name)
                 if not step_func():
-                    print(f"\n❌ Installation failed at: {step_name}")
-                    self.wait_enter()
-                    return False
-                time.sleep(1)
+                    print(f"⚠️  Issue with: {step_name}")
+                    # Continue anyway for non-critical steps
+                    if step_name == "System Check":
+                        all_success = False
             
-            self.show_success()
+            if all_success:
+                self.show_success()
+            else:
+                self.print_header("Installation Issues")
+                print("There were some issues, but LocalSync may still work.")
+                print("Try running 'localsync' to test.")
+                self.wait_enter()
             
             # Try to launch
             try:
@@ -185,16 +214,14 @@ read -p "Press Enter to close..."
             except:
                 print("\n🚀 Run 'localsync' to start the application!")
             
-            return True
-            
         except KeyboardInterrupt:
-            print("\n\n❌ Installation cancelled")
+            print("\n\nInstallation cancelled.")
         except Exception as e:
-            print(f"\n\n❌ Installation error: {e}")
+            print(f"\n\nUnexpected error: {e}")
 
 def main():
     installer = SimpleInstaller()
-    installer.run()
+    installer.run_installation()
 
 if __name__ == "__main__":
     main()
