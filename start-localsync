@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "🚀 Starting LocalSync..."
+localsync
+echo ""
+echo "💡 Tip: Keep LocalSync running to receive files."
