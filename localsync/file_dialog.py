@@ -1,7 +1,7 @@
 import os
 import platform
 import subprocess
-from typing import Optional
+from typing import Optional, List, Tuple
 
 class FileDialog:
     """Cross-platform file dialog using tkinter as primary method"""
@@ -203,3 +203,45 @@ class FileDialog:
                 return f"{size_bytes:.1f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.1f} TB"
+
+    @staticmethod
+    def check_dependencies() -> Tuple[bool, List[str]]:
+        """Check available dialog dependencies on the system"""
+        available_tools = []
+        system = platform.system()
+        
+        # Check tkinter first (most reliable)
+        try:
+            import tkinter
+            available_tools.append("tkinter")
+        except ImportError:
+            pass
+        
+        # Platform-specific checks
+        if system == "Windows":
+            available_tools.append("windows_native")
+            
+        elif system == "Darwin":  # macOS
+            try:
+                # Check for native macOS dialog support
+                available_tools.append("macos_native")
+            except:
+                pass
+                
+        else:  # Linux
+            # Check for Linux dialog tools
+            linux_tools = ['zenity', 'kdialog', 'yad']
+            for tool in linux_tools:
+                if FileDialog._command_exists(tool):
+                    available_tools.append(tool)
+        
+        return len(available_tools) > 0, available_tools
+    
+    @staticmethod
+    def _command_exists(command: str) -> bool:
+        """Check if a command exists in the system PATH"""
+        try:
+            subprocess.run([command, '--version'], capture_output=True, timeout=5)
+            return True
+        except (subprocess.SubprocessError, FileNotFoundError, TimeoutError):
+            return False

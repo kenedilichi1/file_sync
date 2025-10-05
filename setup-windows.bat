@@ -1,11 +1,10 @@
 @echo off
 chcp 65001 > nul
 echo.
-echo 🚀 LocalSync Windows Setup
-echo ==========================
+echo 🚀 LocalSync - Starting Graphical Interface...
 echo.
-echo Starting Python-based installer...
+python -c "import localsync.cli; localsync.cli.main()" --gui
 echo.
-timeout /t 2 /nobreak >nul
-python install-windows.py
+echo LocalSync has closed.
+echo.
 pause

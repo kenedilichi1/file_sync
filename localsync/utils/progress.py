@@ -12,19 +12,16 @@ class ProgressBar:
         self.lock = Lock()
     
     def update(self, value):
-        """Update progress bar with new value"""
         with self.lock:
             self.current = value
             self._display()
     
     def increment(self, delta=1):
-        """Increment progress by delta"""
         with self.lock:
             self.current += delta
             self._display()
     
     def _display(self):
-        """Display the progress bar"""
         progress = min(1.0, self.current / self.total)
         bar_width = int(self.width * progress)
         bar = "█" * bar_width + " " * (self.width - bar_width)
@@ -44,7 +41,6 @@ class ProgressBar:
         sys.stdout.flush()
     
     def close(self):
-        """Complete the progress bar"""
         self.update(self.total)
         sys.stdout.write("\n")
         sys.stdout.flush()

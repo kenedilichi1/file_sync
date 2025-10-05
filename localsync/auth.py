@@ -5,18 +5,18 @@ from getpass import getpass
 
 class AuthManager:
     def __init__(self, config_dir="~/.localsync"):
-        self.config_dir = os.path.expanduser(config_dir)
-        self.users_file = os.path.join(self.config_dir, "users.json")
+        self.config_dir: str = os.path.expanduser(config_dir)
+        self.users_file: str = os.path.join(self.config_dir, "users.json")
         self._ensure_config_dir()
-        
-    def _ensure_config_dir(self):
+
+    def _ensure_config_dir(self) -> None:
         if not os.path.exists(self.config_dir):
             os.makedirs(self.config_dir)
-            
-    def _hash_password(self, password):
+
+    def _hash_password(self, password: str) -> str:
         return hashlib.sha256(password.encode()).hexdigest()
-    
-    def register(self, username, password):
+
+    def register(self, username: str, password: str) -> tuple[bool, str]:
         if os.path.exists(self.users_file):
             with open(self.users_file, 'r') as f:
                 users = json.load(f)
@@ -35,8 +35,8 @@ class AuthManager:
             json.dump(users, f)
             
         return True, "Registration successful"
-    
-    def login(self, username, password):
+
+    def login(self, username: str, password: str) -> tuple[bool, str]:
         if not os.path.exists(self.users_file):
             return False, "No users registered"
             

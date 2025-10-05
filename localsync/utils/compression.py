@@ -14,7 +14,6 @@ class CompressionMethod(Enum):
 class CompressionManager:
     @staticmethod
     def compress_data(data: bytes, method: CompressionMethod = CompressionMethod.ZLIB) -> bytes:
-        """Compress data using specified method"""
         if method == CompressionMethod.NONE:
             return data
         elif method == CompressionMethod.ZLIB:
@@ -30,7 +29,6 @@ class CompressionManager:
     
     @staticmethod
     def decompress_data(compressed_data: bytes, method: CompressionMethod = CompressionMethod.ZLIB) -> bytes:
-        """Decompress data using specified method"""
         if method == CompressionMethod.NONE:
             return compressed_data
         elif method == CompressionMethod.ZLIB:
@@ -46,8 +44,7 @@ class CompressionManager:
     
     @staticmethod
     def get_recommended_method(data_size: int) -> CompressionMethod:
-        """Get recommended compression method based on data size"""
-        if data_size < 1024 * 1024:  # < 1MB
+        if data_size < 1024 * 1024:
             return CompressionMethod.ZLIB
         else:
             return CompressionMethod.LZMA

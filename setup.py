@@ -27,8 +27,8 @@ setup(
         "pyOpenSSL>=20.0",
     ],
     entry_points={
-        "console_scripts": [
-            "localsync=localsync.cli:main",
+    "console_scripts": [
+        "localsync=localsync.cli:main",
         ],
     },
     # Include additional files
@@ -38,10 +38,10 @@ setup(
     },
     # Friendly description for package indexes
     keywords="file-sharing easy simple local-network user-friendly",
-    url="https://github.com/yourusername/localsync",
+    url="https://github.com/kenedilichi1/localsync",
     project_urls={
-        "Documentation": "https://github.com/yourusername/localsync/wiki",
-        "Source": "https://github.com/yourusername/localsync",
-        "Tracker": "https://github.com/yourusername/localsync/issues",
+        "Documentation": "https://github.com/kenedilichi1/localsync/wiki",
+        "Source": "https://github.com/kenedilichi1/localsync",
+        "Tracker": "https://github.com/kenedilichi1/localsync/issues",
     },
 )

@@ -2,4 +2,4 @@ cryptography>=3.4
 pyOpenSSL>=20.0
 pyfiglet>=0.8
 progress>=1.5
-pyobjc-framework-Cocoa>=8.0; sys_platform == "darwin" 
+PyQt6

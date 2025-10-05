@@ -78,13 +78,13 @@ class SimpleInstaller:
         ]
         
         success = True
-        for cmd, desc in commands:
-            if not self.run_command(cmd, desc):
+        for cmd, description in commands:
+            if not self.run_command(cmd, description):
                 success = False
                 print("Trying alternative method...")
                 # Try with python -m pip
                 alt_cmd = cmd.replace(self.pip_cmd, f"{self.python_cmd} -m pip")
-                self.run_command(alt_cmd, desc + " (alternative)")
+                self.run_command(alt_cmd, description + " (alternative)")
         
         return success
     

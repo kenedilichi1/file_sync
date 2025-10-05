@@ -1,4 +1,6 @@
+from logging import config
 import os
+from secrets import choice
 import sys
 import time
 from getpass import getpass
@@ -362,7 +364,7 @@ class MenuSystem:
             return self._view_trusted_devices()
     
     def _settings_menu(self):
-        """Settings menu"""
+        """Settings menu without the broken dependency check"""
         self.print_header("Settings")
     
         config = self.cli.file_transfer.transfer_config.config
@@ -374,9 +376,13 @@ class MenuSystem:
         print(f"Request Timeout: {config['request_timeout']} seconds")
         print(f"Large File Threshold: {self._format_size(config['large_file_threshold'])}")
     
-        # Show available dialog methods
-        available, tools = FileDialog.check_dependencies()
-        dialog_status = f"🟢 {len(tools)} methods" if available else "🔴 Text-only"
+        # Simple dialog availability check without the broken method
+        try:
+            import tkinter
+            dialog_status = "🟢 Graphical dialogs available"
+        except ImportError:
+            dialog_status = "🔴 Text-only mode"
+    
         print(f"File Dialogs: {dialog_status}")
         print()
     
@@ -385,7 +391,7 @@ class MenuSystem:
             "2": "Manage Trusted Senders", 
             "3": "Change Download Directory",
             "4": "Security Settings",
-            "5": "Check Dialog Dependencies"  # New option
+        # Removed the broken "Check Dialog Dependencies" option
         }
     
         choice = self.get_user_choice(options)
@@ -400,8 +406,6 @@ class MenuSystem:
             return self._change_download_directory()
         elif choice == '4':
             return self._security_settings()
-        elif choice == '5':
-            return self._check_dialog_dependencies()
     
     def _send_file_menu(self):
         """Send file menu"""
