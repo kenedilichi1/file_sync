@@ -1,47 +1,29 @@
 from setuptools import setup, find_packages
-import os
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
 
 setup(
-    name="localsync",
-    version="2.0.0",
-    author="LocalSync Team", 
-    author_email="support@localsync.org",
-    description="Easy file sharing over local network - No technical skills needed!",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    packages=find_packages(),
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Intended Audience :: End Users/Desktop",
-        "Topic :: Communications :: File Sharing",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Operating System :: OS Independent",
-    ],
-    python_requires=">=3.7",
+    name="filesync",
+    version="1.0.0",
+    description="Secure file sharing over local network",
+    author="Your Name",
+    author_email="your.email@example.com",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    python_requires=">=3.8",
     install_requires=[
-        "cryptography>=3.4",
-        "pyOpenSSL>=20.0",
+        "PyQt6>=6.4.0",
+        "cryptography>=3.4.0",
     ],
-    entry_points={
-    "console_scripts": [
-        "localsync=localsync.cli:main",
-        ],
-    },
-    # Include additional files
-    include_package_data=True,
-    package_data={
-        "localsync": ["*.md", "*.txt"],
-    },
-    # Friendly description for package indexes
-    keywords="file-sharing easy simple local-network user-friendly",
-    url="https://github.com/kenedilichi1/localsync",
-    project_urls={
-        "Documentation": "https://github.com/kenedilichi1/localsync/wiki",
-        "Source": "https://github.com/kenedilichi1/localsync",
-        "Tracker": "https://github.com/kenedilichi1/localsync/issues",
-    },
+    # Remove entry_points completely
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: End Users/Desktop",
+        "License :: OSI Approved :: MIT License", 
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+    ],
 )
