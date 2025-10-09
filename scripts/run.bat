@@ -2,25 +2,25 @@
 setlocal
 
 set SCRIPT_DIR=%~dp0
-rem Remove trailing backslash if present
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
-
 set PROJECT_ROOT=%SCRIPT_DIR%\..
 
-:: Check if virtual environment exists
 if not exist "%PROJECT_ROOT%\filesync_env" (
     echo ❌ Virtual environment not found. Please run install.bat first.
     pause
     exit /b 1
 )
 
-:: Activate virtual environment
 call "%PROJECT_ROOT%\filesync_env\Scripts\activate.bat"
-
 echo 🚀 Starting FileSync...
-
-:: Run FileSync as a Python module (so relative imports work)
 cd "%PROJECT_ROOT%"
-python -m src.cli %*
+set PYTHONPATH=src
+
+:: Try python3 first, fall back to python
+python3 -c "from cli import main; main()" %*
+if errorlevel 1 (
+    echo ℹ️  python3 not found, trying python...
+    python -c "from cli import main; main()" %*
+)
 
 endlocal
