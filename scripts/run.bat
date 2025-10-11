@@ -1,26 +1,51 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
+echo 🚀 Starting FileSync...
+
+:: Get the directory of this script (e.g., scripts\)
 set SCRIPT_DIR=%~dp0
-if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
-set PROJECT_ROOT=%SCRIPT_DIR%\..
 
-if not exist "%PROJECT_ROOT%\filesync_env" (
+:: Move up one folder to project root
+pushd "%SCRIPT_DIR%\.."
+
+:: Check that virtual environment exists
+if not exist "filesync_env\Scripts\activate.bat" (
     echo ❌ Virtual environment not found. Please run install.bat first.
     pause
     exit /b 1
 )
 
-call "%PROJECT_ROOT%\filesync_env\Scripts\activate.bat"
-echo 🚀 Starting FileSync...
-cd "%PROJECT_ROOT%"
+:: Activate virtual environment
+call "filesync_env\Scripts\activate.bat"
+
+:: Set Python path so imports work
 set PYTHONPATH=src
 
-:: Try python3 first, fall back to python
-python3 -c "from cli import main; main()" %*
-if errorlevel 1 (
-    echo ℹ️  python3 not found, trying python...
-    python -c "from cli import main; main()" %*
+:: Detect available Python command
+set PYTHON_CMD=
+
+for %%P in (python python3 py) do (
+    %%P --version >nul 2>&1 && (
+        set PYTHON_CMD=%%P
+        goto :FOUND_PYTHON
+    )
 )
 
+echo ❌ Python not found. Please install Python 3.
+pause
+exit /b 1
+
+:FOUND_PYTHON
+echo 🐍 Using Python command: %PYTHON_CMD%
+
+:: Run FileSync
+%PYTHON_CMD% -m src.cli --gui
+
+if errorlevel 1 (
+    echo ❌ FileSync crashed or failed to start.
+    pause
+)
+
+popd
 endlocal
