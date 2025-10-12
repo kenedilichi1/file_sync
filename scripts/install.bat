@@ -1,51 +1,86 @@
 @echo off
-setlocal ENABLEDELAYEDEXPANSION
-echo 🚀 Installing FileSync...
+setlocal enabledelayedexpansion
+title FileSync Installer
+echo ==================================================
+echo 🚀 FileSync Installer - Secure File Sharing
+echo ==================================================
 
-REM --- Detect project root (one level above scripts folder) ---
-set SCRIPT_DIR=%~dp0
-for %%I in ("%SCRIPT_DIR%..") do set PROJECT_ROOT=%%~fI
+:: 1️⃣ Go to project root
+set "SCRIPT_DIR=%~dp0"
+cd /d "%SCRIPT_DIR%\.."
 
-REM --- Try to find Python executable ---
+:: 2️⃣ Check for Python installation
+echo 🔍 Checking for Python 3...
 set "PYTHON_CMD="
-for %%P in (python3 python py) do (
-    where %%P >nul 2>nul
-    if !errorlevel! EQU 0 (
-        set "PYTHON_CMD=%%P"
-        goto :found_python
-    )
+
+:: Try various commands
+where python3 >nul 2>nul && set "PYTHON_CMD=python3"
+if "%PYTHON_CMD%"=="" (
+    where python >nul 2>nul && set "PYTHON_CMD=python"
+)
+if "%PYTHON_CMD%"=="" (
+    where py >nul 2>nul && set "PYTHON_CMD=py -3"
 )
 
-echo ❌ Python 3 is required but not installed or not found in PATH.
-echo Please install Python 3.0+ and check the "Add to PATH" option during installation.
-pause
-exit /b 1
+:: 3️⃣ If Python not found, download it automatically
+if "%PYTHON_CMD%"=="" (
+    echo ⚠️ Python 3 not found. Installing automatically...
 
-:found_python
-echo ✅ Using Python command: %PYTHON_CMD%
+    set "PYTHON_INSTALLER=python-installer.exe"
+    set "PYTHON_URL=https://www.python.org/ftp/python/3.12.6/python-3.12.6-amd64.exe"
 
-REM --- Check Python version ---
-for /f "tokens=2 delims= " %%v in ('%PYTHON_CMD% --version 2^>^&1') do set VER=%%v
-for /f "tokens=1 delims=." %%a in ("%VER%") do set MAJOR=%%a
-if "!MAJOR!" LSS "3" (
-    echo ❌ Python 3.0 or higher is required. Found version %VER%.
+    echo 🌐 Downloading Python 3.12.6 from official site...
+    powershell -Command "Invoke-WebRequest '%PYTHON_URL%' -OutFile '%PYTHON_INSTALLER%'"
+
+    if not exist "%PYTHON_INSTALLER%" (
+        echo ❌ Failed to download Python. Check your internet connection.
+        pause
+        exit /b 1
+    )
+
+    echo ⚙️ Installing Python silently...
+    start /wait "" "%PYTHON_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
+
+    echo 🧹 Cleaning up installer...
+    del "%PYTHON_INSTALLER%" >nul 2>nul
+
+    echo ✅ Python installed successfully!
+    set "PYTHON_CMD=python"
+)
+
+:: 4️⃣ Verify Python version
+for /f "tokens=2 delims= " %%v in ('%PYTHON_CMD% --version 2^>^&1') do set "VER=%%v"
+for /f "tokens=1 delims=." %%a in ("%VER%") do set "MAJOR=%%a"
+if %MAJOR% LSS 3 (
+    echo ❌ Python 3 or higher is required. Found version %VER%.
     pause
     exit /b 1
 )
-echo ✅ Detected Python version %VER%
 
-REM --- Create virtual environment ---
+:: 5️⃣ Create virtual environment
 echo 📦 Creating virtual environment...
-cd /d "%PROJECT_ROOT%"
 %PYTHON_CMD% -m venv filesync_env
 
-REM --- Activate virtual environment ---
-echo 🔧 Activating virtual environment...
-call "%PROJECT_ROOT%\filesync_env\Scripts\activate.bat"
+if not exist "filesync_env\Scripts\activate.bat" (
+    echo ❌ Virtual environment creation failed.
+    pause
+    exit /b 1
+)
 
-REM --- Install package in editable mode ---
+:: 6️⃣ Activate environment and install dependencies
+call filesync_env\Scripts\activate.bat
+
+echo 🔧 Upgrading pip...
+python -m pip install --upgrade pip setuptools wheel
+
 echo 📥 Installing FileSync...
-pip install -e .
+python -m pip install -e .
+
+if errorlevel 1 (
+    echo ❌ Installation failed. Check setup.py or dependencies.
+    pause
+    exit /b 1
+)
 
 echo ✅ Installation complete!
 echo.
@@ -55,6 +90,4 @@ echo   python src\cli.py --gui
 echo.
 echo Or use the run script:
 echo   scripts\run.bat
-echo.
 pause
-endlocal
