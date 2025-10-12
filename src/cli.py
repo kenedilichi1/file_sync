@@ -9,6 +9,7 @@ import cmd
 from auth import AuthManager
 from discovery import DeviceDiscovery
 from groups import GroupManager
+from src import discovery
 from transfer import FileTransfer
 from .menu import MenuSystem
 from .new_gui import LocalSyncGUI
@@ -129,23 +130,10 @@ class LocalSyncCLI(cmd.Cmd):
             self._cleanup()
     
     def _create_discovery_manager(self):
-        """Create device discovery manager"""
-        # This method should be implemented based on your discovery module
-        class DiscoveryManager:
-            def __init__(self):
-                self.online_devices = {}
-            
-            def start_discovery(self, username, device_name):
-                print(f"Discovery started for {username} on {device_name}")
-            
-            def stop_discovery(self):
-                print("Discovery stopped")
-            
-            def get_online_devices(self):
-                return self.online_devices
-        
-        return DiscoveryManager()
-    
+        """Initialize the actual DeviceDiscovery system"""
+        device_discovery = discovery.DeviceDiscovery()
+        return device_discovery
+
     def _cleanup(self):
         """Cleanup resources and stop threads safely"""
         try:
