@@ -135,9 +135,9 @@ class TransferTab(QWidget):
             
         # Get recipient IP from controller
         recipient_ip = None
-        for username, info in self.controller.online_devices.items():
-            if username == recipient:
-                recipient_ip = info['ip_address']
+        for device in self.controller.online_devices:
+            if device["username"] == recipient:
+                recipient_ip = device["ip_address"]
                 break
                 
         if not recipient_ip:
@@ -170,11 +170,13 @@ class TransferTab(QWidget):
         """Update recipient combo box"""
         self.recipient_combo.clear()
         recipients = []
-        
-        for username, info in devices.items():
-            if username != self.controller.current_user:
+    
+    # Now devices is a list of dicts, not a dict
+        for device in devices:
+            username = device.get("username")
+            if username and username != self.controller.current_user:
                 recipients.append(username)
-                
+    
         self.recipient_combo.addItems(recipients)
         
     def set_recipient(self, username):

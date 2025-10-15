@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from unittest import case
 
 class GroupManager:
     def __init__(self, config_dir="~/.filesync"):
@@ -18,20 +19,18 @@ class GroupManager:
                 groups = json.load(f)
         else:
             groups = {}
-            
-        if group_name in groups:
-            return False, "Group already exists"
-            
-        groups[group_name] = {
-            'members': members,
-            'created_at': time.time()
-        }
-        
-        with open(self.groups_file, 'w') as f:
-            json.dump(groups, f)
-            
-        return True, "Group created successfully"
-    
+
+        match group_name in groups:
+            case True:
+                return False, "Group already exists"
+            case False:
+                groups[group_name] = {
+                    'members': members,
+                    'created_at': time.time()
+                }
+                with open(self.groups_file, 'w') as f:
+                    json.dump(groups, f)
+                return True, "Group created successfully"
     def get_user_groups(self, username):
         if not os.path.exists(self.groups_file):
             return {}

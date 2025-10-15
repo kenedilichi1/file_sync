@@ -46,19 +46,20 @@ class DevicesTab(QWidget):
     def update_devices_list(self, devices):
         """Update devices treeview"""
         self.devices_tree.clear()
-        
-        for username, info in devices.items():
-            if username != self.controller.current_user:
-                last_seen = time.time() - info['last_seen']
-                status = "🟢 Online" if last_seen < 30 else "🟡 Away"
-                
+
+        for device in devices:
+            if device['username'] != self.controller.current_user:
+                last_seen = device.get('last_seen')
+                status = "🟢 Online" if last_seen else "🟡 Away"
+
                 item = QTreeWidgetItem([
-                    username, 
-                    info['device_name'], 
-                    info['ip_address'], 
+                    device['username'],
+                    device['device_name'],
+                    device['ip_address'],
                     status
                 ])
                 self.devices_tree.addTopLevelItem(item)
+
                 
     def on_device_double_click(self, item, column):
         """Handle double click on device"""

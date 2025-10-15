@@ -1,7 +1,6 @@
 import sys
 import os
 import argparse
-from typing import Optional
 import cmd
 
 
@@ -21,7 +20,7 @@ class LocalSyncCLI(cmd.Cmd):
     def __init__(self, interface_mode='auto', config=None):
         super().__init__()
         self.auth_manager: AuthManager = AuthManager()
-        self.device_discovery: DeviceDiscovery = None
+        self.device_discovery: DeviceDiscovery = DeviceDiscovery()
         self.group_manager: GroupManager = GroupManager()
         
         # Configuration
@@ -137,19 +136,28 @@ class LocalSyncCLI(cmd.Cmd):
     def _cleanup(self):
         """Cleanup resources and stop threads safely"""
         try:
-            if self.device_discovery:
-                self.device_discovery.stop_discovery()
-                self.device_discovery = None
+            cleanup_items = {
+                "device_discovery": self.device_discovery,
+                "file_transfer": self.file_transfer,
+                "auth_manager": getattr(self, "auth_manager", None),
+                "group_manager": getattr(self, "group_manager", None),
+            }
 
-            if self.file_transfer:
-                self.file_transfer.stop_receiver()
-                self.file_transfer = None
+            for name, obj in cleanup_items.items():
+                match name:
+                    case "device_discovery" if obj:
+                        obj.stop_discovery()
+                        self.device_discovery = None
 
-            if hasattr(self, "auth_manager"):
-                self.auth_manager = None
+                    case "file_transfer" if obj:
+                        obj.stop_receiver()
+                        self.file_transfer = None
 
-            if hasattr(self, "group_manager"):
-                self.group_manager = None
+                    case "auth_manager" if obj:
+                        self.auth_manager = None
+
+                    case "group_manager" if obj:
+                        self.group_manager = None
 
             if self.debug:
                 print("🧹 Cleanup completed. All threads stopped.")
@@ -165,7 +173,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  filesync --gui                    # Start with GUI (default)
+  filesync --gui                    # Start with GUI (default if available)
   filesync --menu                   # Start with text menu
   filesync --cmd                    # Start with command line
   filesync --port 8890             # Use specific port
@@ -176,59 +184,44 @@ Interface priority: GUI > Menu > Command Line
     
     # Interface options
     interface_group = parser.add_mutually_exclusive_group()
-    interface_group.add_argument('--gui', '-g', action='store_true', 
-                                help='Start with GUI interface (default if available)')
-    interface_group.add_argument('--menu', '-m', action='store_true', 
-                                help='Start with menu interface')
-    interface_group.add_argument('--cmd', '-c', action='store_true', 
-                                help='Start with command line interface')
+    interface_group.add_argument('--gui', '-g', action='store_true', help='Start with GUI interface (default if available)')
+    interface_group.add_argument('--menu', '-m', action='store_true', help='Start with menu interface')
+    interface_group.add_argument('--cmd', '-c', action='store_true', help='Start with command line interface')
     
     # Additional options
-    parser.add_argument('--port', type=int, default=8889,
-                       help='Port number for file transfer (default: 8889)')
-    parser.add_argument('--download-dir',
-                       help='Custom download directory')
-    parser.add_argument('--debug', action='store_true',
-                       help='Enable debug mode with verbose output')
+    parser.add_argument('--port', type=int, default=8889, help='Port number for file transfer (default: 8889)')
+    parser.add_argument('--download-dir', help='Custom download directory')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode with verbose output')
     
     args = parser.parse_args()
-    
-    # Determine interface mode
-    if args.gui:
-        interface_mode = 'gui'
-    elif args.menu:
-        interface_mode = 'menu'
-    elif args.cmd:
-        interface_mode = 'cmd'
-    else:
-        # Default: try GUI first, fallback to menu
-        interface_mode = 'auto'
-    
-    # Set up configuration
-    config = {
-        'port': args.port,
-        'debug': args.debug
-    }
-    
-    # Set custom download directory if provided
+
+    match (args.gui, args.menu, args.cmd):
+        case (True, _, _):
+            interface_mode = 'gui'
+        case (_, True, _):
+            interface_mode = 'menu'
+        case (_, _, True):
+            interface_mode = 'cmd'
+        case _:
+            interface_mode = 'auto'
+
+    # Configuration setup
+    config = {'port': args.port, 'debug': args.debug}
     if args.download_dir:
         config['download_dir'] = args.download_dir
-    
+
     try:
         cli = LocalSyncCLI(interface_mode=interface_mode, config=config)
-        
-        # Run the appropriate interface
-        if interface_mode == 'gui' or (interface_mode == 'auto' and cli.gui_mode):
-            # GUI mode
-            sys.exit(cli.cmdloop())
-        else:
-            # Menu or command mode
-            cli.cmdloop()
-            
+
+        match interface_mode:
+            case 'gui' | 'auto' if cli.gui_mode:
+                sys.exit(cli.cmdloop())
+            case _:
+                cli.cmdloop()
+                
     except ImportError as e:
         print(f"❌ Import error: {e}")
-        print("💡 Make sure all dependencies are installed:")
-        print("   pip install PyQt6 cryptography")
+        print("💡 Make sure all dependencies are installed:\n   pip install PyQt6 cryptography")
         sys.exit(1)
     except KeyboardInterrupt:
         print("\n👋 Goodbye!")
@@ -237,15 +230,14 @@ Interface priority: GUI > Menu > Command Line
         sys.exit(0)
     except Exception as e:
         print(f"💥 Error: {e}")
-
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         if 'cli' in locals():
             cli._cleanup()
         sys.exit(1)
     finally:
         if 'cli' in locals():
             cli._cleanup()
+
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ class AppController(QObject):
     # Signals
     login_completed = pyqtSignal(bool, str)
     registration_completed = pyqtSignal(bool, str)
-    devices_updated = pyqtSignal(dict)
+    devices_updated = pyqtSignal(list)
     transfer_progress = pyqtSignal(int, str)
     transfer_completed = pyqtSignal(bool, str)
     history_updated = pyqtSignal(str)
@@ -75,7 +75,7 @@ class AppController(QObject):
     def refresh_devices(self):
         """Refresh online devices"""
         if self.cli.device_discovery:
-            self.online_devices = self.cli.device_discovery.get_online_devices()
+            self.online_devices = self.cli.device_discovery.get_online_devices_list()
             self.devices_updated.emit(self.online_devices)
     
     def start_device_discovery(self, username: str):

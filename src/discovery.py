@@ -2,13 +2,12 @@ import socket
 import threading
 import time
 import json
-import platform
-import subprocess
+import struct
 
 class DeviceDiscovery:
-    def __init__(self, port=8888):
+    def __init__(self, port=8889, broadcast_addr=None):
         self.port = port
-        self.broadcast_addr = '255.255.255.255'
+        self.broadcast_addr = broadcast_addr or self._get_broadcast_address()
         self.online_devices = {}
         self.running = False
         self.socket = None
@@ -16,137 +15,121 @@ class DeviceDiscovery:
         self.broadcaster_thread = None
         self.username = None
         self.device_name = None
-        self.multicast_group = "224.1.1.1"  # fallback
+
+    def _get_broadcast_address(self):
+        """Auto-detect subnet broadcast address like 192.168.0.255"""
+        try:
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+            ip_parts = local_ip.split('.')
+            ip_parts[-1] = '255'
+            broadcast = '.'.join(ip_parts)
+            print(f"[Network] Local IP: {local_ip}, Broadcast: {broadcast}")
+            return broadcast
+        except Exception as e:
+            print(f"[Network] Could not detect IP automatically: {e}")
+            return '255.255.255.255'
 
     def start_discovery(self, username, device_name):
-        """Start discovery service with firewall fix"""
+        """Start discovery service"""
+        self.running = True
         self.username = username
         self.device_name = device_name
-        self._ensure_firewall_open()
 
-        self.running = True
+        print(f"🔍 Starting discovery for {username}@{device_name}")
+        print(f"📡 Broadcasting to {self.broadcast_addr}:{self.port}")
 
-        self.listener_thread = threading.Thread(target=self._listen_for_devices)
-        self.listener_thread.daemon = True
+        self.listener_thread = threading.Thread(target=self._listen_for_devices, daemon=True)
         self.listener_thread.start()
 
-        time.sleep(0.1)
-
-        self.broadcaster_thread = threading.Thread(target=self._broadcast_presence)
-        self.broadcaster_thread.daemon = True
+        time.sleep(0.2)
+        self.broadcaster_thread = threading.Thread(target=self._broadcast_presence, daemon=True)
         self.broadcaster_thread.start()
 
-        print(f"🚀 Discovery started for {username}@{device_name}")
-
     def stop_discovery(self):
-        """Stop the discovery service"""
+        """Stop discovery"""
         self.running = False
         if self.socket:
             try:
                 self.socket.close()
-            except Exception:
+            except:
                 pass
-        print("🛑 Discovery service stopped")
-
-    def _ensure_firewall_open(self):
-        """Automatically allow UDP through Windows Firewall"""
-        if platform.system().lower() == "windows":
-            try:
-                subprocess.run([
-                    "netsh", "advfirewall", "firewall", "add", "rule",
-                    "name=FileSync_Discovery", "dir=in", "action=allow",
-                    "protocol=UDP", f"localport={self.port}"
-                ], capture_output=True, check=False)
-            except Exception as e:
-                print(f"⚠️ Could not configure firewall: {e}")
+        print("🛑 Discovery stopped")
 
     def _broadcast_presence(self):
-        """Broadcast device presence (with multicast fallback)"""
-        while self.running:
-            try:
-                message = json.dumps({
-                    "username": self.username,
-                    "device_name": self.device_name,
-                    "timestamp": time.time()
-                }).encode()
-
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                    sock.settimeout(0.5)
-                    try:
-                        sock.sendto(message, (self.broadcast_addr, self.port))
-                    except Exception:
-                        # fallback to multicast
-                        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-                        sock.sendto(message, (self.multicast_group, self.port))
-
-                time.sleep(5)
-            except Exception as e:
-                print(f"Broadcast error: {e}")
-                time.sleep(2)
+        """Broadcast presence over UDP"""
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            while self.running:
+                try:
+                    data = json.dumps({
+                        'username': self.username,
+                        'device_name': self.device_name,
+                        'timestamp': time.time()
+                    })
+                    sock.sendto(data.encode(), (self.broadcast_addr, self.port))
+                    print(f"[Broadcasting] {self.username}@{self.device_name} → {self.broadcast_addr}:{self.port}")
+                    time.sleep(5)
+                except Exception as e:
+                    print(f"[Broadcast error] {e}")
+                    time.sleep(2)
 
     def _listen_for_devices(self):
-        """Listen for incoming broadcasts or multicasts"""
+        """Listen for other devices on the same port"""
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.settimeout(1.0)
             self.socket.bind(('', self.port))
-
-            # Join multicast group
-            group = socket.inet_aton(self.multicast_group)
-            mreq = group + socket.inet_aton("0.0.0.0")
-            try:
-                self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-            except Exception:
-                pass  # Multicast may fail silently on Windows
-
-            self.socket.settimeout(1)
+            print(f"👂 Listening on UDP port {self.port}")
 
             while self.running:
                 try:
                     data, addr = self.socket.recvfrom(1024)
-                    device_info = json.loads(data.decode())
+                    message = json.loads(data.decode())
 
-                    if (device_info["username"] == self.username and
-                        device_info["device_name"] == self.device_name):
-                        continue
+                    match message:
+                        case {"type": "discover", "username": username, "device_name": device_name, "timestamp": ts}:
+                        # Ignore self
+                            if username == self.username and device_name == self.device_name:
+                                continue
+                            self._handle_discovery(username, device_name, addr[0], ts)
 
-                    if time.time() - device_info["timestamp"] < 30:
-                        key = f"{device_info['username']}@{device_info['device_name']}"
-                        self.online_devices[key] = {
-                            **device_info,
-                            "ip_address": addr[0]
-                        }
+                        case {"type": "ping", "username": username}:
+                            print(f"[Ping] Received ping from {username}@{addr[0]}")
 
-                    self._clean_old_devices()
+                        case _:
+                            print(f"[Unknown message] {message}")
 
                 except socket.timeout:
                     continue
                 except Exception as e:
-                    print(f"Listen error: {e}")
+                    print(f"[Listen error] {e}")
                     continue
-
         except Exception as e:
-            print(f"Socket setup error: {e}")
+            print(f"[Socket setup error] {e}")
         finally:
             if self.socket:
                 self.socket.close()
 
     def _clean_old_devices(self):
-        """Remove devices inactive >30s"""
-        cutoff = time.time() - 30
-        self.online_devices = {
-            k: v for k, v in self.online_devices.items() if v["timestamp"] > cutoff
-        }
+        """Remove devices not seen recently"""
+        current_time = time.time()
+        expired = [k for k, v in self.online_devices.items() if v['last_seen'] < current_time - 30]
+        for k in expired:
+            print(f"[Cleanup] Removing {k}")
+            del self.online_devices[k]
 
     def get_online_devices_list(self):
-        """Return list of visible devices"""
+        """Return list of online devices"""
         return [
             {
-                "username": info["username"],
-                "device_name": info["device_name"],
-                "ip_address": info["ip_address"],
-                "last_seen": time.strftime("%H:%M:%S", time.localtime(info["timestamp"]))
+                'username': v['username'],
+                'device_name': v['device_name'],
+                'ip_address': v['ip_address'],
+                'last_seen': time.strftime('%H:%M:%S', time.localtime(v['last_seen']))
             }
-            for info in self.online_devices.values()
+            for v in self.online_devices.values()
         ]
+
