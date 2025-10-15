@@ -17,18 +17,25 @@ class DeviceDiscovery:
         self.device_name = None
 
     def _get_broadcast_address(self):
-        """Auto-detect subnet broadcast address like 192.168.0.255"""
+        """Auto-detect subnet broadcast address (works cross-platform)"""
         try:
-            hostname = socket.gethostname()
-            local_ip = socket.gethostbyname(hostname)
+            # Get the real LAN IP (not 127.x.x.x)
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+
+            # Compute broadcast by replacing last octet with 255
             ip_parts = local_ip.split('.')
             ip_parts[-1] = '255'
             broadcast = '.'.join(ip_parts)
+
             print(f"[Network] Local IP: {local_ip}, Broadcast: {broadcast}")
             return broadcast
         except Exception as e:
-            print(f"[Network] Could not detect IP automatically: {e}")
+            print(f"[Network] Could not detect LAN IP automatically: {e}")
             return '255.255.255.255'
+
 
     def start_discovery(self, username, device_name):
         """Start discovery service"""
